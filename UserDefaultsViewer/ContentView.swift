@@ -26,25 +26,78 @@ struct ListKVPair: View {
     }
 }
 
+
+struct NavViewButtonStyle: ButtonStyle {
+    @State private var hovered = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        VStack {
+            configuration.label
+                .foregroundColor(.primary)
+                .padding(.horizontal, 2)
+                .padding(.vertical, 2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .background(configuration.isPressed ? Color.gray.opacity(0.2) : Color.clear)
+                .background(Color(hovered ? .systemBlue : .clear))
+                .onHover { isHovered in
+                    self.hovered = isHovered
+                }
+                .animation(.default, value: hovered)
+                .clipShape(RoundedRectangle(cornerRadius:10))
+                .font(.callout)
+                .cornerRadius(1)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.gray.opacity(0.3), lineWidth: 2) // Outline color and width
+                )
+        }
+    }
+}
+
+
 struct ContentView: View {
     @State private var key: String = ""
     @State private var value: String = ""
     @State private var allKeys: [String: Any] = [:]
     @State private var searchKey: String = ""
+    @State private var selectedKey: String = ""
     
     var body: some View {
-        VStack {
-            TextField("Search UserDefaults keys", text: $searchKey, onEditingChanged: {_ in 
-                self.allKeys = self.getAllKeys(matching: self.searchKey)
-            })
-            .textFieldStyle(RoundedBorderTextFieldStyle())
-            .padding()
-            List(Array(allKeys.keys), id: \.self) { key in
-                ListKVPair(key: key, value: allKeys[key] as Any)
+        NavigationView
+        {
+            VStack {
+                TextField("Search UserDefaults keys", text: $searchKey, onEditingChanged: {_ in
+                    self.allKeys = self.getAllKeys(matching: self.searchKey)
+                })
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .padding()
+                List(Array(allKeys.keys), id: \.self) { key in
+                                    Button(action: {
+                                        self.selectedKey = key
+                                    }) {
+                                        Text(key)
+                                            .padding()
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                    }
+                                    .buttonStyle(NavViewButtonStyle())
+
+                                }
+                .listStyle(SidebarListStyle())
+
+//                                .frame(maxHeight: 200)
             }
-            .frame(maxHeight: 200)
+            .frame(width: 200)
+            VStack {
+                Text("Value for '\(selectedKey)': ")
+                    .font(.headline)
+                    .padding()
+                Text(getUserDefaultsValue(forKey: selectedKey))
+                    .padding()
+            }
         }
-        .frame(width: 600, height: 400)
+        .navigationViewStyle(DoubleColumnNavigationViewStyle())
+
         .onAppear {
             self.allKeys = self.getAllKeys(matching: "")
         }
