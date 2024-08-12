@@ -6,78 +6,72 @@
 //
 
 import SwiftUI
-import CoreData
 
-struct ContentView: View {
-    @Environment(\.managedObjectContext) private var viewContext
-
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \Item.timestamp, ascending: true)],
-        animation: .default)
-    private var items: FetchedResults<Item>
+struct ListKVPair: View {
+    let key: String
+    let value: Any
 
     var body: some View {
-        NavigationView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp!, formatter: itemFormatter)")
-                    } label: {
-                        Text(item.timestamp!, formatter: itemFormatter)
-                    }
-                }
-                .onDelete(perform: deleteItems)
-            }
-            .toolbar {
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
-            }
-            Text("Select an item")
-        }
-    }
+        HStack {
+            Text(key)
+                .font(.headline)
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(context: viewContext)
-            newItem.timestamp = Date()
+            Spacer()
 
-            do {
-                try viewContext.save()
-            } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-            }
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            offsets.map { items[$0] }.forEach(viewContext.delete)
-
-            do {
-                try viewContext.save()
-            } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-            }
+            Text("\(value)")
+                .truncationMode(/*@START_MENU_TOKEN@*/.tail/*@END_MENU_TOKEN@*/)
+                .font(.headline)
+                .foregroundColor(.secondary)
         }
     }
 }
 
-private let itemFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.dateStyle = .short
-    formatter.timeStyle = .medium
-    return formatter
-}()
+struct ContentView: View {
+    @State private var key: String = ""
+    @State private var value: String = ""
+    @State private var allKeys: [String: Any] = [:]
+    @State private var searchKey: String = ""
+    
+    var body: some View {
+        VStack {
+            TextField("Search UserDefaults keys", text: $searchKey, onEditingChanged: {_ in 
+                self.allKeys = self.getAllKeys(matching: self.searchKey)
+            })
+            .textFieldStyle(RoundedBorderTextFieldStyle())
+            .padding()
+            List(Array(allKeys.keys), id: \.self) { key in
+                ListKVPair(key: key, value: allKeys[key] as Any)
+            }
+            .frame(maxHeight: 200)
+        }
+        .frame(width: 600, height: 400)
+        .onAppear {
+            self.allKeys = self.getAllKeys(matching: "")
+        }
+    }
+    
+    private func getUserDefaultsValue(forKey key: String) -> String {
+        let defaults = UserDefaults.standard
+        if let value = defaults.object(forKey: key) {
+            return "\(value)"
+        } else {
+            return "No value found for key '\(key)'"
+        }
+    }
+    
+    private func getAllKeys(matching search: String) -> [String: Any]{
+        let defaults = UserDefaults.standard
+        let dictionary = defaults.dictionaryRepresentation()
+        if search.isEmpty {
+            return dictionary
+        } else {
+            return dictionary.filter( { $0.key.contains(search) } )
+        }
+    }
+}
 
-#Preview {
-    ContentView().environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+    }
 }
